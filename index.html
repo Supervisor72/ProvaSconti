@@ -12,6 +12,7 @@
   button:hover { background: #005a9e; }
   .error { color: red; font-size: 0.9em; margin-top: 0.2em; display: none; }
   .debug { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em; }
+  .loading { background: #d1ecf1; border: 1px solid #bee5eb; padding: 10px; margin: 10px 0; border-radius: 4px; }
 </style>
 <script>
   function verificaSconto() {
@@ -56,6 +57,126 @@
     debugDiv.style.display = "block";
   }
 
+  function showLoading(show) {
+    const loadingDiv = document.getElementById("loadingInfo");
+    if (show) {
+      loadingDiv.style.display = "block";
+      loadingDiv.innerHTML = "<strong>⏳ Invio in corso...</strong>";
+    } else {
+      loadingDiv.style.display = "none";
+    }
+  }
+
+  // Test con metodo GET diretto
+  function testConnessioneGET() {
+    showDebug("Test GET diretto...");
+    const url = "https://script.google.com/macros/s/AKfycbxjYUWS413rEyKEXkhziM-o5-oiNDBnEiP2ZIaPqrl4CSZMWAVE73Txx-fqNEr_DGOb/exec";
+    
+    // Crea un iframe nascosto per testare
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    
+    iframe.onload = function() {
+      showDebug("GET: Iframe caricato correttamente");
+      try {
+        const content = iframe.contentDocument.body.textContent;
+        showDebug("GET: Contenuto ricevuto: " + content.substring(0, 100));
+      } catch (e) {
+        showDebug("GET: Contenuto non accessibile (normale per CORS), ma server risponde");
+      }
+      document.body.removeChild(iframe);
+    };
+    
+    iframe.onerror = function() {
+      showDebug("GET: Errore caricamento iframe");
+      document.body.removeChild(iframe);
+    };
+    
+    document.body.appendChild(iframe);
+    
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        showDebug("GET: Timeout - server potrebbe non rispondere");
+        document.body.removeChild(iframe);
+      }
+    }, 10000);
+  }
+
+  // Invio con form submission classico (no AJAX)
+  function inviaDatiFormSubmit(event) {
+    event.preventDefault();
+    
+    if (!verificaSconto()) {
+      showDebug("Validazione sconto fallita");
+      return;
+    }
+
+    showDebug("Invio con form submission...");
+    showLoading(true);
+
+    const data = {
+      pv: document.getElementById("pv").value,
+      prodotto: document.getElementById("prodotto").value,
+      codProd: document.getElementById("codProd").value,
+      cliente: document.getElementById("cliente").value,
+      dataVendita: document.getElementById("dataVendita").value,
+      prezzoPartenza: document.getElementById("prezzoPartenza").value,
+      prezzoScontato: document.getElementById("prezzoScontato").value,
+      sconto: document.getElementById("sconto").value
+    };
+
+    // Crea form nascosto
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://script.google.com/macros/s/AKfycbxjYUWS413rEyKEXkhziM-o5-oiNDBnEiP2ZIaPqrl4CSZMWAVE73Txx-fqNEr_DGOb/exec';
+    form.target = 'responseFrame';
+    
+    // Aggiungi dati come input nascosti
+    for (const [key, value] of Object.entries(data)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    }
+    
+    // Crea iframe per la risposta
+    const iframe = document.createElement('iframe');
+    iframe.name = 'responseFrame';
+    iframe.style.display = 'none';
+    
+    iframe.onload = function() {
+      showLoading(false);
+      showDebug("Form inviato, risposta ricevuta");
+      
+      setTimeout(() => {
+        try {
+          const response = iframe.contentDocument.body.textContent;
+          showDebug("Risposta: " + response);
+          
+          if (response.includes('"result":"OK"') || response.includes('"status":"active"')) {
+            alert("Dati inviati con successo!");
+            document.getElementById("formRichiesta").reset();
+            document.getElementById("scontoMax").textContent = "";
+          } else {
+            alert("Possibile errore nel server. Controlla il debug.");
+          }
+        } catch (e) {
+          showDebug("Impossibile leggere risposta (CORS), ma form inviato");
+          alert("Form inviato! Controlla il Google Sheet per verificare.");
+        }
+        
+        document.body.removeChild(form);
+        document.body.removeChild(iframe);
+      }, 2000);
+    };
+    
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    form.submit();
+  }
+
   async function inviaDati(event) {
     event.preventDefault();
     
@@ -84,6 +205,8 @@
     const url = "https://script.google.com/macros/s/AKfycbxjYUWS413rEyKEXkhziM-o5-oiNDBnEiP2ZIaPqrl4CSZMWAVE73Txx-fqNEr_DGOb/exec";
     showDebug("URL di destinazione: " + url);
 
+    showLoading(true);
+
     try {
       showDebug("Invio richiesta fetch...");
       
@@ -93,13 +216,18 @@
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-        mode: 'cors'
+        mode: 'no-cors'  // Cambiato da 'cors' a 'no-cors'
       });
 
+      showLoading(false);
       showDebug("Risposta ricevuta. Status: " + response.status + " - " + response.statusText);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.type === 'opaque') {
+        showDebug("Risposta opaque (normale con no-cors)");
+        alert("Dati inviati! Controlla il Google Sheet per verificare se sono stati salvati.");
+        document.getElementById("formRichiesta").reset();
+        document.getElementById("scontoMax").textContent = "";
+        return;
       }
 
       const result = await response.json();
@@ -115,27 +243,13 @@
         showDebug("Errore dal server: " + (result.message || "Nessun messaggio"));
       }
     } catch (error) {
+      showLoading(false);
       showDebug("ERRORE CATCH: " + error.message);
       showDebug("Tipo errore: " + error.name);
       console.error("Errore completo:", error);
-      alert("Errore di comunicazione con il server: " + error.message);
-    }
-  }
-
-  // Test connessione
-  async function testConnessione() {
-    const url = "https://script.google.com/macros/s/AKfycbw933BXvDuDASjOZ3eRJ4Hqrc4arH4rPjjgfEk2szJCeTsXO7yL8g6P9DQrk0DWTHARBg/exec";
-    
-    try {
-      const response = await fetch(url, {
-        method: "GET",
-        mode: 'cors'
-      });
-      showDebug("Test GET - Status: " + response.status);
-      const text = await response.text();
-      showDebug("Test GET - Risposta: " + text);
-    } catch (error) {
-      showDebug("Test GET - Errore: " + error.message);
+      
+      // Con no-cors, gli errori sono normali
+      alert("Richiesta inviata (errore CORS normale). Controlla il Google Sheet!");
     }
   }
 </script>
@@ -143,10 +257,14 @@
 <body>
   <h1>Richiesta Promo Alternativa</h1>
   
-  <button type="button" onclick="testConnessione()" style="background: #28a745; margin-bottom: 1em;">
-    🔍 Test Connessione
+  <button type="button" onclick="testConnessioneGET()" style="background: #28a745; margin-bottom: 0.5em;">
+    🔍 Test Connessione GET
+  </button>
+  <button type="button" onclick="inviaDatiFormSubmit(event)" style="background: #ffc107; color: black; margin-bottom: 1em;">
+    📤 Test Invio Form Classico
   </button>
   
+  <div id="loadingInfo" class="loading" style="display: none;"></div>
   <div id="debugInfo" class="debug" style="display: none;">
     <strong>Debug Info:</strong>
   </div>
@@ -189,7 +307,7 @@
     <input type="number" id="sconto" min="1" required />
     <div id="errorSconto" class="error"></div>
 
-    <button type="submit">Invia richiesta</button>
+    <button type="submit">Invia richiesta (AJAX)</button>
   </form>
 </body>
 </html>

@@ -1,313 +1,212 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Richiesta Promo Alternativa</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 600px; margin: 2em auto; padding: 1em; background: #f9f9f9; }
-  label { display: block; margin-top: 1em; font-weight: bold; }
-  input, select, button { width: 100%; padding: 0.5em; margin-top: 0.3em; }
-  button { background: #0078d7; color: white; border: none; cursor: pointer; font-size: 1em; margin-top: 1.5em; }
-  button:hover { background: #005a9e; }
-  .error { color: red; font-size: 0.9em; margin-top: 0.2em; display: none; }
-  .debug { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em; }
-  .loading { background: #d1ecf1; border: 1px solid #bee5eb; padding: 10px; margin: 10px 0; border-radius: 4px; }
-</style>
-<script>
-  function verificaSconto() {
-    const prodotto = document.getElementById("prodotto").value;
-    const sconto = parseFloat(document.getElementById("sconto").value);
-    const errorMsg = document.getElementById("errorSconto");
-
-    if (prodotto === "TV" && sconto > 5) {
-      errorMsg.style.display = "block";
-      errorMsg.textContent = "Per la categoria TV lo sconto massimo è del 5%";
-      return false;
-    } else if (prodotto === "BIANCO" && sconto > 10) {
-      errorMsg.style.display = "block";
-      errorMsg.textContent = "Per la categoria BIANCO lo sconto massimo è del 10%";
-      return false;
-    } else {
-      errorMsg.style.display = "none";
-      return true;
-    }
-  }
-
-  function aggiornaScontoMassimo() {
-    const prodotto = document.getElementById("prodotto").value;
-    const scontoInput = document.getElementById("sconto");
-    const scontoMaxSpan = document.getElementById("scontoMax");
-
-    if (prodotto === "TV") {
-      scontoInput.max = "5";
-      scontoMaxSpan.textContent = "(max 5%)";
-    } else if (prodotto === "BIANCO") {
-      scontoInput.max = "10";
-      scontoMaxSpan.textContent = "(max 10%)";
-    } else {
-      scontoInput.removeAttribute("max");
-      scontoMaxSpan.textContent = "";
-    }
-  }
-
-  function showDebug(message) {
-    const debugDiv = document.getElementById("debugInfo");
-    debugDiv.innerHTML += "<p>" + new Date().toLocaleTimeString() + ": " + message + "</p>";
-    debugDiv.style.display = "block";
-  }
-
-  function showLoading(show) {
-    const loadingDiv = document.getElementById("loadingInfo");
-    if (show) {
-      loadingDiv.style.display = "block";
-      loadingDiv.innerHTML = "<strong>⏳ Invio in corso...</strong>";
-    } else {
-      loadingDiv.style.display = "none";
-    }
-  }
-
-  // Test con metodo GET diretto
-  function testConnessioneGET() {
-    showDebug("Test GET diretto...");
-    const url = "https://script.google.com/macros/s/AKfycbxjYUWS413rEyKEXkhziM-o5-oiNDBnEiP2ZIaPqrl4CSZMWAVE73Txx-fqNEr_DGOb/exec";
-    
-    // Crea un iframe nascosto per testare
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = url;
-    
-    iframe.onload = function() {
-      showDebug("GET: Iframe caricato correttamente");
-      try {
-        const content = iframe.contentDocument.body.textContent;
-        showDebug("GET: Contenuto ricevuto: " + content.substring(0, 100));
-      } catch (e) {
-        showDebug("GET: Contenuto non accessibile (normale per CORS), ma server risponde");
-      }
-      document.body.removeChild(iframe);
-    };
-    
-    iframe.onerror = function() {
-      showDebug("GET: Errore caricamento iframe");
-      document.body.removeChild(iframe);
-    };
-    
-    document.body.appendChild(iframe);
-    
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        showDebug("GET: Timeout - server potrebbe non rispondere");
-        document.body.removeChild(iframe);
-      }
-    }, 10000);
-  }
-
-  // Invio con form submission classico (no AJAX)
-  function inviaDatiFormSubmit(event) {
-    event.preventDefault();
-    
-    if (!verificaSconto()) {
-      showDebug("Validazione sconto fallita");
-      return;
-    }
-
-    showDebug("Invio con form submission...");
-    showLoading(true);
-
-    const data = {
-      pv: document.getElementById("pv").value,
-      prodotto: document.getElementById("prodotto").value,
-      codProd: document.getElementById("codProd").value,
-      cliente: document.getElementById("cliente").value,
-      dataVendita: document.getElementById("dataVendita").value,
-      prezzoPartenza: document.getElementById("prezzoPartenza").value,
-      prezzoScontato: document.getElementById("prezzoScontato").value,
-      sconto: document.getElementById("sconto").value
-    };
-
-    // Crea form nascosto
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'https://script.google.com/macros/s/AKfycbxjYUWS413rEyKEXkhziM-o5-oiNDBnEiP2ZIaPqrl4CSZMWAVE73Txx-fqNEr_DGOb/exec';
-    form.target = 'responseFrame';
-    
-    // Aggiungi dati come input nascosti
-    for (const [key, value] of Object.entries(data)) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = value;
-      form.appendChild(input);
-    }
-    
-    // Crea iframe per la risposta
-    const iframe = document.createElement('iframe');
-    iframe.name = 'responseFrame';
-    iframe.style.display = 'none';
-    
-    iframe.onload = function() {
-      showLoading(false);
-      showDebug("Form inviato, risposta ricevuta");
-      
-      setTimeout(() => {
-        try {
-          const response = iframe.contentDocument.body.textContent;
-          showDebug("Risposta: " + response);
-          
-          if (response.includes('"result":"OK"') || response.includes('"status":"active"')) {
-            alert("Dati inviati con successo!");
-            document.getElementById("formRichiesta").reset();
-            document.getElementById("scontoMax").textContent = "";
-          } else {
-            alert("Possibile errore nel server. Controlla il debug.");
-          }
-        } catch (e) {
-          showDebug("Impossibile leggere risposta (CORS), ma form inviato");
-          alert("Form inviato! Controlla il Google Sheet per verificare.");
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invia Dati a Foglio Google</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        
-        document.body.removeChild(form);
-        document.body.removeChild(iframe);
-      }, 2000);
-    };
-    
-    document.body.appendChild(iframe);
-    document.body.appendChild(form);
-    form.submit();
-  }
-
-  async function inviaDati(event) {
-    event.preventDefault();
-    
-    // Clear previous debug info
-    document.getElementById("debugInfo").innerHTML = "";
-    showDebug("Inizio invio dati...");
-
-    if (!verificaSconto()) {
-      showDebug("Validazione sconto fallita");
-      return;
-    }
-
-    const data = {
-      pv: document.getElementById("pv").value,
-      prodotto: document.getElementById("prodotto").value,
-      codProd: document.getElementById("codProd").value,
-      cliente: document.getElementById("cliente").value,
-      dataVendita: document.getElementById("dataVendita").value,
-      prezzoPartenza: document.getElementById("prezzoPartenza").value,
-      prezzoScontato: document.getElementById("prezzoScontato").value,
-      sconto: document.getElementById("sconto").value
-    };
-
-    showDebug("Dati preparati: " + JSON.stringify(data));
-
-    const url = "https://script.google.com/macros/s/AKfycbxjYUWS413rEyKEXkhziM-o5-oiNDBnEiP2ZIaPqrl4CSZMWAVE73Txx-fqNEr_DGOb/exec";
-    showDebug("URL di destinazione: " + url);
-
-    showLoading(true);
-
-    try {
-      showDebug("Invio richiesta fetch...");
-      
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-        mode: 'no-cors'  // Cambiato da 'cors' a 'no-cors'
-      });
-
-      showLoading(false);
-      showDebug("Risposta ricevuta. Status: " + response.status + " - " + response.statusText);
-
-      if (response.type === 'opaque') {
-        showDebug("Risposta opaque (normale con no-cors)");
-        alert("Dati inviati! Controlla il Google Sheet per verificare se sono stati salvati.");
-        document.getElementById("formRichiesta").reset();
-        document.getElementById("scontoMax").textContent = "";
-        return;
-      }
-
-      const result = await response.json();
-      showDebug("Dati JSON ricevuti: " + JSON.stringify(result));
-
-      if (result.result === "OK" || result.success === true) {
-        alert("Dati inviati con successo!");
-        document.getElementById("formRichiesta").reset();
-        document.getElementById("scontoMax").textContent = "";
-        showDebug("Invio completato con successo!");
-      } else {
-        alert("Errore nel server: " + (result.message || "Errore sconosciuto"));
-        showDebug("Errore dal server: " + (result.message || "Nessun messaggio"));
-      }
-    } catch (error) {
-      showLoading(false);
-      showDebug("ERRORE CATCH: " + error.message);
-      showDebug("Tipo errore: " + error.name);
-      console.error("Errore completo:", error);
-      
-      // Con no-cors, gli errori sono normali
-      alert("Richiesta inviata (errore CORS normale). Controlla il Google Sheet!");
-    }
-  }
-</script>
+        .container {
+            background-color: #ffffff;
+            padding: 25px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input[type="text"],
+        input[type="date"],
+        input[type="number"] {
+            width: calc(100% - 22px); /* Considera padding e border */
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus,
+        input[type="date"]:focus,
+        input[type="number"]:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 25px;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.95em;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .required-mark {
+            color: #e74c3c;
+            margin-left: 2px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Richiesta Promo Alternativa</h1>
-  
-  <button type="button" onclick="testConnessioneGET()" style="background: #28a745; margin-bottom: 0.5em;">
-    🔍 Test Connessione GET
-  </button>
-  <button type="button" onclick="inviaDatiFormSubmit(event)" style="background: #ffc107; color: black; margin-bottom: 1em;">
-    📤 Test Invio Form Classico
-  </button>
-  
-  <div id="loadingInfo" class="loading" style="display: none;"></div>
-  <div id="debugInfo" class="debug" style="display: none;">
-    <strong>Debug Info:</strong>
-  </div>
+    <div class="container">
+        <h1>Modulo Invio Dati Richiesta</h1>
+        <p>Compila i campi sottostanti per inviare i dati al Foglio Google.</p>
 
-  <form id="formRichiesta" onsubmit="inviaDati(event)">
-    <label for="pv">Punto Vendita:</label>
-    <select id="pv" required>
-      <option value="">-- Seleziona un punto vendita --</option>
-      <option value="Fano">Fano</option>
-      <option value="Monsano">Monsano</option>
-      <option value="Osimo">Osimo</option>
-      <option value="Macerata">Macerata</option>
-      <option value="Civitanova">Civitanova</option>
-      <option value="Pesaro">Pesaro</option>
-    </select>
+        <form id="dataForm">
+            <label for="pv">Punto Vendita (PV):<span class="required-mark">*</span></label>
+            <input type="text" id="pv" name="pv" required>
 
-    <label for="prodotto">Prodotto:</label>
-    <select id="prodotto" required onchange="aggiornaScontoMassimo()">
-      <option value="">-- Seleziona categoria prodotto --</option>
-      <option value="TV">TV</option>
-      <option value="BIANCO">BIANCO</option>
-    </select>
+            <label for="prodotto">Prodotto:<span class="required-mark">*</span></label>
+            <input type="text" id="prodotto" name="prodotto" required>
 
-    <label for="codProd">Codice Prodotto:</label>
-    <input type="text" id="codProd" required />
+            <label for="codProd">Codice Prodotto:<span class="required-mark">*</span></label>
+            <input type="text" id="codProd" name="codProd" required>
 
-    <label for="cliente">Cognome Nome Cliente:</label>
-    <input type="text" id="cliente" required />
+            <label for="cliente">Cliente:<span class="required-mark">*</span></label>
+            <input type="text" id="cliente" name="cliente" required>
 
-    <label for="dataVendita">Data Vendita:</label>
-    <input type="date" id="dataVendita" required />
+            <label for="dataVendita">Data Vendita:</label>
+            <input type="date" id="dataVendita" name="dataVendita">
 
-    <label for="prezzoPartenza">Prezzo Partenza (€):</label>
-    <input type="number" id="prezzoPartenza" step="0.01" required />
+            <label for="prezzoPartenza">Prezzo Partenza:</label>
+            <input type="number" id="prezzoPartenza" name="prezzoPartenza" step="0.01" placeholder="Es. 100.50">
 
-    <label for="prezzoScontato">Prezzo Scontato (€):</label>
-    <input type="number" id="prezzoScontato" step="0.01" required />
+            <label for="prezzoScontato">Prezzo Scontato:</label>
+            <input type="number" id="prezzoScontato" name="prezzoScontato" step="0.01" placeholder="Es. 90.00">
 
-    <label for="sconto">Sconto Richiesto <span id="scontoMax"></span>:</label>
-    <input type="number" id="sconto" min="1" required />
-    <div id="errorSconto" class="error"></div>
+            <label for="sconto">Sconto Applicato (€):</label>
+            <input type="number" id="sconto" name="sconto" step="0.01" placeholder="Es. 10.50">
 
-    <button type="submit">Invia richiesta (AJAX)</button>
-  </form>
+            <button type="submit" id="submitButton">Invia Dati</button>
+        </form>
+
+        <div id="responseMessage" class="message" style="display:none;"></div>
+    </div>
+
+    <script>
+        // IMPORTANTE: Sostituisci questa URL con l'URL della tua Web App Google Apps Script distribuita!
+      const scriptURL = 'https://script.google.com/macros/s/AKfycbzu93xGkiLDHrBPzTZ3_rueh4kVPQ1eDGJPuJAw8BjKCwI2JgoKWk1Q43ne2-84A3ljrw/exec';        
+        const form = document.getElementById('dataForm');
+        const submitButton = document.getElementById('submitButton');
+        const responseMessage = document.getElementById('responseMessage');
+
+        form.addEventListener('submit', e => {
+            e.preventDefault(); // Impedisce il submit tradizionale del form
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Invio in corso...';
+            responseMessage.style.display = 'none';
+            responseMessage.textContent = '';
+            responseMessage.className = 'message'; // Resetta le classi del messaggio
+
+            const formData = new FormData(form);
+            const data = {
+                pv: formData.get('pv'),
+                prodotto: formData.get('prodotto'),
+                codProd: formData.get('codProd'),
+                cliente: formData.get('cliente'),
+                dataVendita: formData.get('dataVendita') || null, // Invia null se il campo data è vuoto
+                prezzoPartenza: parseFloat(formData.get('prezzoPartenza')) || 0,
+                prezzoScontato: parseFloat(formData.get('prezzoScontato')) || 0,
+                sconto: parseFloat(formData.get('sconto')) || 0
+            };
+
+            fetch(scriptURL, {
+                method: 'POST',
+                mode: 'cors', // Necessario per richieste cross-origin
+                cache: 'no-cache',
+                headers: {
+                    // Google Apps Script si aspetta text/plain per il payload quando si usa e.postData.contents
+                    // e poi si fa JSON.parse() nello script.
+                    'Content-Type': 'text/plain;charset=UTF-8',
+                },
+                body: JSON.stringify(data), // Converte l'oggetto JS in una stringa JSON
+                redirect: 'follow' // Segue eventuali redirect da parte di Apps Script
+            })
+            .then(response => {
+                // Apps Script con ContentService di solito risponde con status 200
+                // e il corpo della risposta è il JSON che hai definito.
+                if (!response.ok) {
+                    // Se la risposta non è ok, prova a leggere il messaggio di errore dal server
+                    // o genera un errore generico.
+                    return response.json().then(errData => {
+                        throw new Error(errData.message || `Errore HTTP ${response.status}`);
+                    }).catch(parseError => {
+                        // Se response.json() fallisce (es. risposta non JSON), lancia un errore più generico
+                        console.error("Errore nel parsing JSON della risposta di errore:", parseError);
+                        throw new Error(`Errore HTTP ${response.status}. Risposta non JSON o illeggibile.`);
+                    });
+                }
+                return response.json(); // Parsa la risposta JSON dal server
+            })
+            .then(dataResponse => {
+                if (dataResponse.result === "OK") {
+                    responseMessage.textContent = dataResponse.message || 'Dati inviati con successo!';
+                    responseMessage.className = 'message success';
+                    form.reset(); // Pulisce il form dopo l'invio
+                } else {
+                    responseMessage.textContent = 'Errore dall\'applicazione: ' + (dataResponse.message || 'Si è verificato un errore sconosciuto.');
+                    responseMessage.className = 'message error';
+                }
+            })
+            .catch(error => {
+                console.error('Errore durante l\'invio del form:', error);
+                responseMessage.textContent = 'Errore di comunicazione: ' + error.message;
+                responseMessage.className = 'message error';
+            })
+            .finally(() => {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Invia Dati';
+                responseMessage.style.display = 'block';
+            });
+        });
+    </script>
 </body>
 </html>

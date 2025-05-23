@@ -37,20 +37,27 @@
         }
         input[type="text"],
         input[type="date"],
-        input[type="number"] {
-            width: calc(100% - 22px); /* Considera padding e border */
+        input[type="number"],
+        select {
+            width: calc(100% - 22px);
             padding: 10px;
             margin-bottom: 10px;
             border: 1px solid #bdc3c7;
             border-radius: 4px;
             box-sizing: border-box;
             transition: border-color 0.3s;
+            background-color: white;
         }
         input[type="text"]:focus,
         input[type="date"]:focus,
-        input[type="number"]:focus {
+        input[type="number"]:focus,
+        select:focus {
             border-color: #3498db;
             outline: none;
+        }
+        select {
+            width: 100%;
+            cursor: pointer;
         }
         button {
             background-color: #3498db;
@@ -101,10 +108,22 @@
 
         <form id="dataForm">
             <label for="pv">Punto Vendita (PV):<span class="required-mark">*</span></label>
-            <input type="text" id="pv" name="pv" required>
+            <select id="pv" name="pv" required>
+                <option value="">Seleziona un punto vendita</option>
+                <option value="FANO">FANO</option>
+                <option value="MONSANO">MONSANO</option>
+                <option value="OSIMO">OSIMO</option>
+                <option value="MACERATA">MACERATA</option>
+                <option value="CIVITANOVA">CIVITANOVA</option>
+                <option value="PESARO">PESARO</option>
+            </select>
 
             <label for="prodotto">Prodotto:<span class="required-mark">*</span></label>
-            <input type="text" id="prodotto" name="prodotto" required>
+            <select id="prodotto" name="prodotto" required>
+                <option value="">Seleziona un prodotto</option>
+                <option value="BIANCO">BIANCO</option>
+                <option value="TV">TV</option>
+            </select>
 
             <label for="codProd">Codice Prodotto:<span class="required-mark">*</span></label>
             <input type="text" id="codProd" name="codProd" required>

@@ -151,7 +151,7 @@
 
     <script>
         // IMPORTANTE: Sostituisci questa URL con l'URL della tua Web App Google Apps Script distribuita!
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbzu93xGkiLDHrBPzTZ3_rueh4kVPQ1eDGJPuJAw8BjKCwI2JgoKWk1Q43ne2-84A3ljrw/exec';        
+      const scriptURL = 'https://script.google.com/macros/s/AKfycbzu93xGkiLDHrBPzTZ3_rueh4kVPQ1eDGJPuJAw8BjKCwI2JgoKWk1Q43ne2-84A3ljrw/exec';        
         const form = document.getElementById('dataForm');
         const submitButton = document.getElementById('submitButton');
         const responseMessage = document.getElementById('responseMessage');
@@ -171,7 +171,7 @@
                 prodotto: formData.get('prodotto'),
                 codProd: formData.get('codProd'),
                 cliente: formData.get('cliente'),
-                dataVendita: formData.get('dataVendita') || null,
+                dataVendita: formData.get('dataVendita') || null, // Invia null se il campo data è vuoto
                 prezzoPartenza: parseFloat(formData.get('prezzoPartenza')) || 0,
                 prezzoScontato: parseFloat(formData.get('prezzoScontato')) || 0,
                 sconto: parseFloat(formData.get('sconto')) || 0
@@ -179,27 +179,37 @@
 
             fetch(scriptURL, {
                 method: 'POST',
+                mode: 'cors', // Necessario per richieste cross-origin
+                cache: 'no-cache',
                 headers: {
-                    'Content-Type': 'application/json', // ✅ CAMBIATO QUI
+                    // Google Apps Script si aspetta text/plain per il payload quando si usa e.postData.contents
+                    // e poi si fa JSON.parse() nello script.
+                    'Content-Type': 'text/plain;charset=UTF-8',
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify(data), // Converte l'oggetto JS in una stringa JSON
+                redirect: 'follow' // Segue eventuali redirect da parte di Apps Script
             })
             .then(response => {
+                // Apps Script con ContentService di solito risponde con status 200
+                // e il corpo della risposta è il JSON che hai definito.
                 if (!response.ok) {
+                    // Se la risposta non è ok, prova a leggere il messaggio di errore dal server
+                    // o genera un errore generico.
                     return response.json().then(errData => {
                         throw new Error(errData.message || `Errore HTTP ${response.status}`);
                     }).catch(parseError => {
+                        // Se response.json() fallisce (es. risposta non JSON), lancia un errore più generico
                         console.error("Errore nel parsing JSON della risposta di errore:", parseError);
                         throw new Error(`Errore HTTP ${response.status}. Risposta non JSON o illeggibile.`);
                     });
                 }
-                return response.json();
+                return response.json(); // Parsa la risposta JSON dal server
             })
             .then(dataResponse => {
                 if (dataResponse.result === "OK") {
                     responseMessage.textContent = dataResponse.message || 'Dati inviati con successo!';
                     responseMessage.className = 'message success';
-                    form.reset();
+                    form.reset(); // Pulisce il form dopo l'invio
                 } else {
                     responseMessage.textContent = 'Errore dall\'applicazione: ' + (dataResponse.message || 'Si è verificato un errore sconosciuto.');
                     responseMessage.className = 'message error';
